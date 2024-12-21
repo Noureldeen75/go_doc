@@ -383,111 +383,147 @@ import "fmt"
 
 ---
 
-### **Code Overview**
-The program demonstrates the use of structs to group related data (student courses and grades) and how arrays and slices work within structs.
+### **Commented Code Explanation**
 
----
+The commented-out code demonstrates how slices work in Go, including their relationship with arrays and how modifying a slice affects the underlying array.
 
-### **Struct Definition**
 ```go
-type Student struct {
-	courses [5]string
-	grades  [5]float64
-}
+number := [5]int{1, 2, 3, 4, 5}
+fmt.Println(number) // [1, 2, 3, 4, 5]
 ```
 
-- **`Student`**: A custom type (struct) that groups two fields:
-  - **`courses`**: An array of 5 strings to store course names.
-  - **`grades`**: An array of 5 floating-point numbers to store grades for each course.
+- **`number`**:
+  - An array of 5 integers initialized with values `[1, 2, 3, 4, 5]`.
+  - Arrays in Go have a fixed size, defined at the time of declaration (`[5]int`).
+
+- **`fmt.Println(number)`**:
+  - Prints the array's content: `[1, 2, 3, 4, 5]`.
 
 ---
 
-### **Main Function**
+```go
+slice := number[2:4] // len = 2, cap = 3
+fmt.Print("Cap: ", cap(slice))
+```
+
+- **`slice := number[2:4]`**:
+  - Creates a slice referencing the array `number` starting from index 2 (inclusive) to index 4 (exclusive).
+  - The slice contains the elements `[3, 4]`.
+
+- **`len(slice)`**:
+  - The length of the slice is `2` because it includes two elements: `[3, 4]`.
+
+- **`cap(slice)`**:
+  - The capacity of the slice is `3` because it can extend up to the end of the original array (`[3, 4, 5]`).
+
+- **`fmt.Print("Cap: ", cap(slice))`**:
+  - Prints the slice's capacity: `Cap: 3`.
+
+---
+
+```go
+slice[0] = -10
+fmt.Println("new Slice", slice) // [-10, 4] 
+fmt.Println("new Array", number) //[1, 2, -10, 4, 5]
+```
+
+- **`slice[0] = -10`**:
+  - Modifies the first element of the slice (`slice[0]`).
+  - Since slices are references to the underlying array, the change also affects the array `number`.
+
+- **`fmt.Println("new Slice", slice)`**:
+  - Prints the updated slice: `[-10, 4]`.
+
+- **`fmt.Println("new Array", number)`**:
+  - Prints the updated array: `[1, 2, -10, 4, 5]`.
+  - Notice how modifying the slice also modified the original array.
+
+---
+
+### **Main Function with Struct Example**
+
+The main function demonstrates how structs can be used to group related data.
+
 ```go
 func main() {
+	type Student struct {
+		courses [5]string
+		grades  [5]float64
+	}
+```
+
+- **`Student`**:
+  - A struct with two fields:
+    - **`courses`**: An array of 5 strings for course names.
+    - **`grades`**: An array of 5 floating-point numbers for course grades.
+
+---
+
+```go
 	qassas := Student{
 		courses: [5]string{"DB", "IT", "AI", "ML", "CN"},
 		grades:  [5]float64{85.0, 90.0, 92.0, 95.5, 100.0},
 	}
+```
 
+- **`qassas`**:
+  - An instance of the `Student` struct.
+  - Initialized using a struct literal:
+    - `courses`: Contains 5 course names: `"DB"`, `"IT"`, `"AI"`, `"ML"`, `"CN"`.
+    - `grades`: Contains 5 grades corresponding to the courses: `85.0`, `90.0`, `92.0`, `95.5`, and `100.0`.
+
+---
+
+```go
 	fmt.Println("course: ", qassas.courses)
 }
 ```
 
-#### **Variable Initialization**
-```go
-qassas := Student{
-	courses: [5]string{"DB", "IT", "AI", "ML", "CN"},
-	grades:  [5]float64{85.0, 90.0, 92.0, 95.5, 100.0},
-}
-```
-
-1. **`qassas`**:
-   - An instance of the `Student` struct.
-   - Initialized using a struct literal.
-
-2. **`courses`**:
-   - An array of 5 course names: `"DB"`, `"IT"`, `"AI"`, `"ML"`, and `"CN"`.
-
-3. **`grades`**:
-   - An array of 5 grades corresponding to the courses: `85.0`, `90.0`, `92.0`, `95.5`, and `100.0`.
-
----
-
-#### **Accessing and Printing Struct Fields**
-```go
-fmt.Println("course: ", qassas.courses)
-```
-
-- **`qassas.courses`**: Accesses the `courses` field of the `qassas` struct.
-- **`fmt.Println`**: Prints the array of courses.
+- **`fmt.Println("course: ", qassas.courses)`**:
+  - Prints the `courses` field of the `qassas` struct.
+  - Output: `course:  [DB IT AI ML CN]`.
 
 ---
 
 ### **Execution Flow**
-1. **Define the `Student` struct**:
-   - The struct groups `courses` and `grades` into a single entity.
+1. **Commented Code**:
+   - Demonstrates how slices reference arrays and how modifying a slice affects the original array.
+   - Highlights key slice properties like `len` (length) and `cap` (capacity).
 
-2. **Create an instance of `Student`**:
-   - The `qassas` variable is initialized with specific values for `courses` and `grades`.
-
-3. **Print the `courses` field**:
-   - The `fmt.Println` function outputs the array of course names stored in `qassas.courses`.
-
----
-
-### **Output**
-```plaintext
-course:  [DB IT AI ML CN]
-```
+2. **Struct Example**:
+   - Defines a `Student` struct to group course names and grades.
+   - Creates an instance of the struct (`qassas`) with initialized values.
+   - Accesses and prints the `courses` field.
 
 ---
 
 ### **Key Concepts**
 
+#### **Slices and Arrays**
+- Slices are dynamic views into arrays.
+- Modifying a slice affects the underlying array.
+- Slices have `len` (length) and `cap` (capacity), which may differ.
+
 #### **Structs in Go**
-- A struct is a composite data type that groups related fields.
-- Each field can have a different type.
-- Access struct fields using the `.` operator.
-
-#### **Arrays in Structs**
-- Struct fields can include arrays, as shown with `courses` and `grades`.
-- Arrays in Go have a fixed size, specified at declaration (e.g., `[5]string`).
-
-#### **Initialization with Struct Literals**
-- Structs can be initialized using a literal with field names explicitly specified:
-  ```go
-  qassas := Student{
-      courses: [5]string{"DB", "IT", "AI", "ML", "CN"},
-      grades:  [5]float64{85.0, 90.0, 92.0, 95.5, 100.0},
-  }
-  ```
-
-#### **Printing Struct Fields**
-- Use `fmt.Println` to print struct fields.
-- Arrays are displayed in a compact format, e.g., `[DB IT AI ML CN]`.
+- A struct is a composite type for grouping related fields.
+- Fields are accessed using the `.` operator.
 
 ---
+
+### **Output**
+
+#### **Commented Code**
+```plaintext
+[1, 2, 3, 4, 5]
+Cap: 3
+new Slice [-10, 4]
+new Array [1, 2, -10, 4, 5]
+```
+
+#### **Main Function**
+```plaintext
+course:  [DB IT AI ML CN]
+```
 
 ### Lab-6
 
