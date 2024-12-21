@@ -717,3 +717,248 @@ All tasks processed.
 
 ### Lab-6
 ---
+
+### Full Code
+
+```go
+package main
+
+import (
+	"fmt"
+	"sync"
+	"time"
+)
+
+// Define Task struct
+type Task struct {
+	ID          int
+	ProcessTime int
+}
+
+// Define a method of the Task struct
+func (t *Task) Process() {
+	fmt.Printf("Processing Task %d...\n", t.ID)
+	time.Sleep(time.Duration(t.ProcessTime) * time.Second)
+}
+
+// Define WorkerPool struct
+type WorkerPool struct {
+	ID              int
+	Tasks           []Task
+	NumberOfWorkers int
+	TasksChannel    chan Task
+	WG              sync.WaitGroup
+}
+
+// Define a method on the WorkerPool struct for workers
+func (w *WorkerPool) Worker(workerID int) {
+	for task := range w.TasksChannel {
+		fmt.Printf("Worker %d: ", workerID)
+		task.Process()
+		w.WG.Done()
+	}
+}
+
+// Start the worker pool and distribute tasks
+func (w *WorkerPool) Pool() {
+	w.TasksChannel = make(chan Task, len(w.Tasks)) // Buffered channel with the size of the task list
+	for i := 1; i <= w.NumberOfWorkers; i++ {
+		go w.Worker(i) // Each worker gets a unique ID
+	}
+
+	for _, task := range w.Tasks {
+		w.WG.Add(1)
+		w.TasksChannel <- task // Send tasks to the channel
+	}
+
+	close(w.TasksChannel) // Close the channel to signal workers
+	w.WG.Wait()           // Wait for all workers to finish
+}
+
+func main() {
+	// Create a list of tasks
+	tasks := make([]Task, 20)
+	for i := 0; i < cap(tasks); i++ {
+		tasks[i] = Task{
+			ID:          i + 1,
+			ProcessTime: 1, // Each task takes 1 second to process
+		}
+	}
+
+	// Create a WorkerPool instance
+	wp := WorkerPool{
+		ID:              1, // Assign an ID to the WorkerPool
+		Tasks:           tasks,
+		NumberOfWorkers: 5, // Number of workers
+	}
+
+	// Start the worker pool
+	wp.Pool()
+
+	fmt.Println("All tasks completed")
+}
+```
+
+---
+
+### Explanation
+
+#### **Task Struct**
+```go
+type Task struct {
+	ID          int
+	ProcessTime int
+}
+```
+- **Fields**:
+  - `ID`: Unique identifier for each task.
+  - `ProcessTime`: Time (in seconds) required to process the task.
+  
+```go
+func (t *Task) Process() {
+	fmt.Printf("Processing Task %d...\n", t.ID)
+	time.Sleep(time.Duration(t.ProcessTime) * time.Second)
+}
+```
+- **`Process` Method**:
+  - Simulates processing by printing the task ID and sleeping for the specified `ProcessTime`.
+
+---
+
+#### **WorkerPool Struct**
+```go
+type WorkerPool struct {
+	ID              int
+	Tasks           []Task
+	NumberOfWorkers int
+	TasksChannel    chan Task
+	WG              sync.WaitGroup
+}
+```
+- **Fields**:
+  - `ID`: Unique identifier for the worker pool.
+  - `Tasks`: A slice of `Task` objects to be processed.
+  - `NumberOfWorkers`: Number of concurrent workers in the pool.
+  - `TasksChannel`: A channel for distributing tasks to workers.
+  - `WG`: A `WaitGroup` to ensure all workers finish before exiting.
+
+---
+
+#### **Worker Method**
+```go
+func (w *WorkerPool) Worker(workerID int) {
+	for task := range w.TasksChannel {
+		fmt.Printf("Worker %d: ", workerID)
+		task.Process()
+		w.WG.Done()
+	}
+}
+```
+- **Purpose**:
+  - Processes tasks received from the `TasksChannel`.
+- **Logic**:
+  - Prints the worker ID and processes the task.
+  - Calls `w.WG.Done()` to signal task completion.
+
+---
+
+#### **Pool Method**
+```go
+func (w *WorkerPool) Pool() {
+	w.TasksChannel = make(chan Task, len(w.Tasks)) // Buffered channel
+	for i := 1; i <= w.NumberOfWorkers; i++ {
+		go w.Worker(i) // Assigns a unique ID to each worker
+	}
+
+	for _, task := range w.Tasks {
+		w.WG.Add(1)       // Increment WaitGroup counter
+		w.TasksChannel <- task // Send task to the channel
+	}
+
+	close(w.TasksChannel) // Close the channel after sending all tasks
+	w.WG.Wait()           // Wait for all workers to finish
+}
+```
+- **Purpose**:
+  - Initializes workers and distributes tasks.
+- **Logic**:
+  - Creates a buffered channel to hold tasks.
+  - Launches `NumberOfWorkers` workers.
+  - Sends tasks to the channel.
+  - Closes the channel and waits for workers to complete.
+
+---
+
+#### **Main Function**
+```go
+func main() {
+	tasks := make([]Task, 20)
+	for i := 0; i < cap(tasks); i++ {
+		tasks[i] = Task{
+			ID:          i + 1,
+			ProcessTime: 1,
+		}
+	}
+
+	wp := WorkerPool{
+		ID:              1,
+		Tasks:           tasks,
+		NumberOfWorkers: 5,
+	}
+
+	wp.Pool()
+
+	fmt.Println("All tasks completed")
+}
+```
+- **Purpose**:
+  - Creates tasks and a `WorkerPool` instance.
+  - Starts the worker pool to process tasks.
+- **Logic**:
+  - Initializes 20 tasks, each taking 1 second to process.
+  - Creates a `WorkerPool` with 5 workers.
+  - Calls the `Pool` method to process tasks.
+
+---
+
+### **Execution Flow**
+1. **Task Creation**:
+   - 20 tasks are created with IDs from 1 to 20.
+2. **WorkerPool Initialization**:
+   - A `WorkerPool` with 5 workers is created.
+3. **Worker Launch**:
+   - 5 workers are started, each with a unique ID.
+4. **Task Distribution**:
+   - Tasks are sent to the `TasksChannel`.
+5. **Task Processing**:
+   - Workers retrieve and process tasks concurrently.
+6. **Completion**:
+   - The `WaitGroup` ensures all tasks are processed before the program exits.
+
+---
+
+### **Sample Output**
+Order may vary due to concurrency:
+```
+Worker 1: Processing Task 1...
+Worker 2: Processing Task 2...
+Worker 3: Processing Task 3...
+Worker 4: Processing Task 4...
+Worker 5: Processing Task 5...
+Worker 1: Processing Task 6...
+Worker 2: Processing Task 7...
+Worker 3: Processing Task 8...
+Worker 4: Processing Task 9...
+Worker 5: Processing Task 10...
+Worker 1: Processing Task 11...
+Worker 2: Processing Task 12...
+Worker 3: Processing Task 13...
+Worker 4: Processing Task 14...
+Worker 5: Processing Task 15...
+Worker 1: Processing Task 16...
+Worker 2: Processing Task 17...
+Worker 3: Processing Task 18...
+Worker 4: Processing Task 19...
+Worker 5: Processing Task 20...
+All tasks completed
+```
