@@ -525,6 +525,195 @@ new Array [1, 2, -10, 4, 5]
 course:  [DB IT AI ML CN]
 ```
 
-### Lab-6
+---
 
+### Lab-5-(part-2)
+
+---
+
+### Full Code:
+```go
+package main
+
+import (
+    "fmt"
+    "sync"
+    "time"
+)
+
+// Worker function
+func worker(id int, tasks chan int, wg *sync.WaitGroup) {
+    defer wg.Done()
+    for task := range tasks {
+        fmt.Printf("Worker %d processing task %d\n", id, task)
+        time.Sleep(time.Second) // Simulate task processing time
+    }
+}
+
+func main() {
+    const numWorkers = 3
+    const numReq = 10
+
+    tasks := make(chan int, numReq) //Buffered Channel
+    var wg sync.WaitGroup
+
+    // Start workers
+    for i := 1; i <= numWorkers; i++ {
+        wg.Add(1)
+        go worker(i, tasks, &wg)
+    }
+
+    // Send tasks to the task queue
+    for i := 1; i <= numReq; i++ {
+        tasks <- i
+    }
+    close(tasks) // Close the task channel to signal no more tasks
+
+    // Wait for all workers to finish
+    wg.Wait()
+
+    fmt.Println("All tasks processed.")
+}
+```
+
+---
+
+### Explanation:
+
+#### **Imports**
+- `fmt`: For formatted input/output.
+- `sync`: To manage synchronization with `WaitGroup`.
+- `time`: To simulate task processing with delays.
+
+---
+
+#### **Worker Function**
+```go
+func worker(id int, tasks chan int, wg *sync.WaitGroup) {
+    defer wg.Done()
+    for task := range tasks {
+        fmt.Printf("Worker %d processing task %d\n", id, task)
+        time.Sleep(time.Second)
+    }
+}
+```
+- **Parameters**:
+  - `id`: Worker ID for identification.
+  - `tasks`: A channel from which tasks are received.
+  - `wg`: A `WaitGroup` pointer to signal when the worker finishes.
+- **Logic**:
+  - `defer wg.Done()`: Ensures that the `WaitGroup` counter is decremented when the worker finishes.
+  - `for task := range tasks`: Continuously retrieves tasks from the channel until it is closed.
+  - `fmt.Printf`: Prints the worker ID and the task it is processing.
+  - `time.Sleep`: Simulates task processing by pausing execution for 1 second.
+
+---
+
+#### **Main Function**
+```go
+const numWorkers = 3
+const numReq = 10
+```
+- `numWorkers`: The number of workers (goroutines) to process tasks.
+- `numReq`: The total number of tasks to be processed.
+
+---
+
+##### **Task Channel**
+```go
+tasks := make(chan int, numReq)
+```
+- A **buffered channel** is created with a capacity of `numReq` to hold tasks. This allows sending tasks without immediate consumption.
+
+---
+
+##### **Worker Initialization**
+```go
+for i := 1; i <= numWorkers; i++ {
+    wg.Add(1)
+    go worker(i, tasks, &wg)
+}
+```
+- A loop starts `numWorkers` workers.
+- `wg.Add(1)`: Increments the `WaitGroup` counter for each worker.
+- `go worker`: Launches the worker function as a goroutine.
+
+---
+
+##### **Task Distribution**
+```go
+for i := 1; i <= numReq; i++ {
+    tasks <- i
+}
+close(tasks)
+```
+- A loop sends `numReq` tasks to the `tasks` channel.
+- `close(tasks)`: Signals workers that no more tasks will be sent.
+
+---
+
+##### **Waiting for Workers**
+```go
+wg.Wait()
+```
+- Blocks the main function until all workers signal completion using `wg.Done()`.
+
+---
+
+##### **Completion**
+```go
+fmt.Println("All tasks processed.")
+```
+- Prints a message after all tasks are processed and workers finish.
+
+---
+
+### **Execution Flow**
+1. **Workers Start**:
+   - `numWorkers` goroutines are created, each running the `worker` function.
+2. **Tasks Sent**:
+   - `numReq` tasks are sent to the `tasks` channel.
+3. **Task Processing**:
+   - Workers process tasks concurrently, retrieving tasks from the channel.
+4. **Channel Closed**:
+   - The `tasks` channel is closed after all tasks are sent.
+5. **Wait for Completion**:
+   - The main function waits for all workers to finish.
+6. **Program Ends**:
+   - A message is printed, and the program exits.
+
+---
+
+### **Key Concepts**
+1. **Concurrency**:
+   - Workers run as separate goroutines, enabling parallel task processing.
+2. **Buffered Channel**:
+   - Tasks are queued in a channel, decoupling task production from consumption.
+3. **WaitGroup**:
+   - Ensures the main function waits until all workers finish.
+4. **Channel Closing**:
+   - Properly closing the channel signals workers to stop waiting for tasks.
+
+---
+
+### **Example Output**
+The order of task processing may vary due to concurrent execution:
+
+```
+Worker 1 processing task 1
+Worker 2 processing task 2
+Worker 3 processing task 3
+Worker 1 processing task 4
+Worker 2 processing task 5
+Worker 3 processing task 6
+Worker 1 processing task 7
+Worker 2 processing task 8
+Worker 3 processing task 9
+Worker 1 processing task 10
+All tasks processed.
+```
+
+---
+
+### Lab-6
 ---
