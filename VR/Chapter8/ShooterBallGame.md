@@ -1,6 +1,6 @@
-# DestroyBall Script
+# ShooterBallGame Script
 
-The **DestroyBall** script handles the lifecycle of a GameObject in Unity. It deactivates the object either after a set time (using a timer) or when the object falls below a certain position. This script is commonly used to manage objects like falling items or projectiles in games.
+The **ShooterBallGame** script handles the mechanics of shooting objects (balls) in Unity. It uses an **ObjectPooler** for efficient ball reuse, alternates between multiple shooters, and aims at a target.
 
 ---
 
@@ -11,35 +11,58 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class DestroyBall : MonoBehaviour
+[RequireComponent(typeof(ObjectPooler))]
+public class ShooterBallGame : MonoBehaviour
 {
-    public float timer = 15f;  // Time after which the object will be disabled.
+    public Transform shootAt;  // The target to aim at.
+    public Transform shooter0;  // The first shooter.
+    public Transform shooter1;  // The second shooter.
+    public float speed = 5.0f;  // Speed of the shot balls.
+    public float interval = 3f;  // Interval between shots.
 
-    //void Start()
-    //{
-    //    Destroy(gameObject, timer);
-    //}
+    private float nextBallTime = 0f;  // Time until the next ball is shot.
+    private ObjectPooler pool;  // Reference to the ObjectPooler component.
+    private GameObject activeBall;  // The current ball being shot.
+    private int shooterId = 0;  // Tracks which shooter is active.
+    private Transform shooter;  // The active shooter.
+    private AudioSource soundEffect;  // Audio feedback for shooting.
+
+    private void Start()
+    {
+        if (shootAt == null)
+        {
+            shootAt = Camera.main.transform;  // Default target is the main camera.
+        }
+        soundEffect = GetComponent<AudioSource>();
+        pool = GetComponent<ObjectPooler>();
+        if (pool == null)
+        {
+            Debug.LogError("BallGame requires ObjectPooler component");
+        }
+    }
 
     void Update()
     {
-        if (transform.position.y < -5f)  // Check if the object has fallen below -5 on the Y-axis.
-            DisableMe();
-            //Destroy(gameObject);
+        if (Time.time > nextBallTime)
+        {
+            shooterId = shooterId == 0 ? 1 : 0;  // Toggle between shooter0 and shooter1.
+            shooter = shooterId == 0 ? shooter0 : shooter1;
+
+            nextBallTime = Time.time + interval;  // Update the next ball time.
+            ShootBall();
+        }   
     }
 
-    private void DisableMe()
+    private void ShootBall()
     {
-        gameObject.SetActive(false);  // Deactivate the object instead of destroying it.
-    }
-
-    void OnEnable()
-    {
-        Invoke("DisableMe", timer);  // Schedule deactivation after the specified timer.
-    }
-
-    void OnDisable()
-    {
-        CancelInvoke();  // Cancel any pending Invoke calls when the object is disabled.
+        soundEffect.Play();
+        activeBall = pool.GetPooledObject();  // Fetch a ball from the object pool.
+        activeBall.transform.position = shooter.position;  // Set the ball's position.
+        activeBall.transform.rotation = Quaternion.identity;  // Reset rotation.
+        shooter.transform.LookAt(shootAt);  // Aim the shooter at the target.
+        activeBall.GetComponent<Rigidbody>().velocity = shooter.forward * speed;  // Set the ball's velocity.
+        activeBall.GetComponent<Rigidbody>().angularVelocity = Vector3.zero;  // Stop spinning.
+        activeBall.SetActive(true);  // Activate the ball.
     }
 }
 ```
@@ -48,9 +71,10 @@ public class DestroyBall : MonoBehaviour
 
 ## What the Script Does
 
-- Deactivates the object after a specified time (`timer`) using **`Invoke`**.
-- Deactivates the object if it falls below a certain position on the Y-axis (`-5`).
-- Cancels any scheduled deactivation when the object is disabled.
+- **Aims and shoots balls** at a target at regular intervals.
+- **Alternates between two shooters** to create varied behavior.
+- **Reuses balls** from an object pool for performance optimization.
+- **Plays a sound** whenever a ball is shot for better user feedback.
 
 ---
 
@@ -59,185 +83,168 @@ public class DestroyBall : MonoBehaviour
 ### 1. Variables
 
 ```csharp
-public float timer = 15f;  // Time before the object is deactivated.
+public Transform shootAt;
+public Transform shooter0;
+public Transform shooter1;
+public float speed = 5.0f;
+public float interval = 3f;
+
+private float nextBallTime = 0f;
+private ObjectPooler pool;
+private GameObject activeBall;
+private int shooterId = 0;
+private Transform shooter;
+private AudioSource soundEffect;
 ```
 
-- **`timer`**: Sets how long the object remains active before being automatically deactivated.
+- **`shootAt`**: The target position where balls are aimed. Defaults to the main camera if not assigned.
+- **`shooter0`, `shooter1`**: Transform references for the two shooters.
+- **`speed`**: Determines how fast the balls travel.
+- **`interval`**: Time between consecutive shots.
+- **`nextBallTime`**: Tracks when the next ball will be shot.
+- **`pool`**: Handles efficient reuse of ball objects.
+- **`shooterId`**: Alternates between `0` and `1` to determine the active shooter.
+- **`soundEffect`**: Plays a sound each time a ball is shot.
 
 ---
 
-### 2. Update Method
+### 2. Start Method
+
+```csharp
+private void Start()
+{
+    if (shootAt == null)
+    {
+        shootAt = Camera.main.transform;
+    }
+    soundEffect = GetComponent<AudioSource>();
+    pool = GetComponent<ObjectPooler>();
+    if (pool == null)
+    {
+        Debug.LogError("BallGame requires ObjectPooler component");
+    }
+}
+```
+
+- **Purpose**: Initializes variables and checks for required components.
+- **Key Features**:
+  - Assigns the target (`shootAt`) to the main camera if not explicitly set.
+  - Retrieves the `ObjectPooler` and logs an error if it's missing.
+
+---
+
+### 3. Update Method
 
 ```csharp
 void Update()
 {
-    if (transform.position.y < -5f)
-        DisableMe();
+    if (Time.time > nextBallTime)
+    {
+        shooterId = shooterId == 0 ? 1 : 0;
+        shooter = shooterId == 0 ? shooter0 : shooter1;
+
+        nextBallTime = Time.time + interval;
+        ShootBall();
+    }   
 }
 ```
 
-- **Purpose**: Checks if the object has fallen below a specific Y-axis value (`-5`).
+- **Purpose**: Controls the shooting logic.
 - **Key Features**:
-  - If the object falls below the threshold, it is deactivated using the `DisableMe()` method.
+  - Alternates between `shooter0` and `shooter1`.
+  - Ensures balls are shot at regular intervals using `nextBallTime`.
 
 ---
 
-### 3. DisableMe Method
+### 4. ShootBall Method
 
 ```csharp
-private void DisableMe()
+private void ShootBall()
 {
-    gameObject.SetActive(false);  // Deactivates the GameObject instead of destroying it.
+    soundEffect.Play();
+    activeBall = pool.GetPooledObject();
+    activeBall.transform.position = shooter.position;
+    activeBall.transform.rotation = Quaternion.identity;
+    shooter.transform.LookAt(shootAt);
+    activeBall.GetComponent<Rigidbody>().velocity = shooter.forward * speed;
+    activeBall.GetComponent<Rigidbody>().angularVelocity = Vector3.zero;
+    activeBall.SetActive(true);
 }
 ```
 
-- **Purpose**: Deactivates the object to make it available for reuse in object pooling systems.
-
----
-
-### 4. OnEnable Method
-
-```csharp
-void OnEnable()
-{
-    Invoke("DisableMe", timer);  // Schedules the object to be deactivated after `timer` seconds.
-}
-```
-
-- **Purpose**: Called automatically when the object is activated. Schedules the `DisableMe()` method to run after the `timer` duration.
-
----
-
-### 5. OnDisable Method
-
-```csharp
-void OnDisable()
-{
-    CancelInvoke();  // Cancels any scheduled `Invoke` calls when the object is deactivated.
-}
-```
-
-- **Purpose**: Ensures no lingering `Invoke` calls are left when the object is deactivated.
+- **Purpose**: Handles the mechanics of shooting balls.
+- **Key Features**:
+  - Fetches a ball from the pool.
+  - Positions and aligns the ball with the shooter.
+  - Applies velocity and resets angular velocity.
+  - Activates the ball and plays a sound.
 
 ---
 
 ## Potential Exam Questions
 
-### True/False
+### Questions Provided by the Doctor
 
-1. **The `DisableMe` method deactivates the GameObject instead of destroying it.**  
+#### 1. What is the purpose of the `[RequireComponent(typeof(ObjectPooler))]` attribute?  
+**Answer**: It ensures that the `ShooterBallGame` script requires an `ObjectPooler` component. If it's missing, Unity automatically adds it to the GameObject.
+
+#### 2. What does the `shootAt` variable represent?  
+**Answer**: The `shootAt` variable represents the target position where the balls are aimed. By default, it is set to the main camera's position.
+
+#### 3. What happens when `Time.time` exceeds `nextBallTime`?  
+**Answer**: The `Update()` method triggers the shooting logic, alternates between shooters, updates `nextBallTime`, and calls the `ShootBall()` method.
+
+#### 4. What is the purpose of the `shooterId` variable?  
+**Answer**: It tracks which shooter (`shooter0` or `shooter1`) is currently active and alternates between them.
+
+#### 5. Explain the role of `pool.GetPooledObject()` in the `ShootBall` method.  
+**Answer**: It retrieves a ball from the object pool for reuse, improving performance by avoiding the creation of new objects.
+
+#### 6. What does the `shooter.transform.LookAt(shootAt)` line do?  
+**Answer**: It rotates the shooter to face the target before firing the ball.
+
+#### 7. What happens to the ball’s velocity and angular velocity in the `ShootBall` method?  
+**Answer**: The ball's velocity is set to move in the direction the shooter is facing, and its angular velocity is reset to `Vector3.zero` to prevent spinning.
+
+#### 8. How is the ball’s activation managed in the `ShootBall` method?  
+**Answer**: The ball is activated by calling `activeBall.SetActive(true)` after setting its position and physics properties.
+
+#### 9. What is the purpose of the `soundEffect.Play()` line?  
+**Answer**: It plays a sound whenever a ball is shot, providing auditory feedback.
+
+#### 10. What would happen if the `ObjectPooler` component was not attached?  
+**Answer**: The `Start()` method would log an error, and the game would not fetch balls, causing the shooting functionality to fail.
+
+#### 11. Why is the `activeBall.GetComponent<Rigidbody>().angularVelocity = Vector3.zero;` line used?  
+**Answer**: It ensures the ball does not spin when shot, resulting in more realistic movement.
+
+---
+
+### Additional Questions
+
+#### True/False
+
+1. **The `ObjectPooler` improves performance by reusing objects.**  
    **Answer**: True  
 
-2. **The `OnEnable` method is called whenever the object is reactivated.**  
-   **Answer**: True  
-
-3. **The script destroys the GameObject permanently when it falls below -5 on the Y-axis.**  
-   **Answer**: False (It deactivates the GameObject instead).  
-
-4. **The `OnDisable` method schedules the object for deactivation.**  
-   **Answer**: False (It cancels any scheduled `Invoke` calls).  
+2. **The script alternates between three shooters.**  
+   **Answer**: False (It alternates between two).  
 
 ---
 
-### Multiple Choice
+#### Multiple Choice
 
-1. **What does the `DisableMe` method do in this script?**  
-   - A) Permanently destroys the object.  
-   - B) Deactivates the object for reuse.  
-   - C) Moves the object back to its original position.  
-   - **Answer**: B  
-
-2. **What triggers the `OnEnable` method?**  
-   - A) When the object is first instantiated.  
-   - B) Every time the object is activated.  
-   - C) When the object is destroyed.  
-   - **Answer**: B  
-
-3. **What happens if the object is below -5 on the Y-axis?**  
-   - A) It gets destroyed.  
-   - B) It is deactivated using `DisableMe()`.  
-   - C) Nothing happens.  
+1. **What does the `ShootBall` method do?**  
+   - A) Spawns a new ball.  
+   - B) Fetches a ball from the pool and fires it at the target.  
+   - C) Deletes the active ball.  
    - **Answer**: B  
 
 ---
 
-### Fill in the Blanks
+#### Debugging
 
-1. The **`_________`** method schedules the object to be deactivated after a set duration.  
-   **Answer**: OnEnable  
-
-2. The object is deactivated using the **`_________`** method.  
-   **Answer**: DisableMe  
-
-3. When the object is disabled, any pending **`_________`** calls are canceled.  
-   **Answer**: Invoke  
+1. **What happens if the `AudioSource` component is missing?**  
+   **Answer**: The script will throw a `NullReferenceException` when trying to call `soundEffect.Play()`.  
 
 ---
-
-### Short Answer
-
-1. **Why does the script use `SetActive(false)` instead of `Destroy(gameObject)`?**  
-   **Answer**: Using `SetActive(false)` makes the object available for reuse in object pooling systems, improving performance by avoiding repeated instantiation and destruction.  
-
-2. **What happens if the `CancelInvoke()` method is not called in `OnDisable()`?**  
-   **Answer**: Pending `Invoke` calls might trigger even after the object is deactivated, causing unexpected behavior.  
-
-3. **How can you change the script to destroy the object instead of deactivating it?**  
-   **Answer**: Replace `gameObject.SetActive(false)` with `Destroy(gameObject)` in the `DisableMe` method.
-
----
-
-### Debugging Questions
-
-1. **What happens if the object is reactivated before the timer expires?**  
-   **Answer**: The `OnEnable()` method schedules a new `Invoke`, and the old one is canceled by `OnDisable()` when the object is deactivated.  
-
-2. **What happens if the `timer` value is set to 0?**  
-   **Answer**: The object will be immediately deactivated upon activation.  
-
-3. **What would happen if the `OnEnable` and `OnDisable` methods are removed?**  
-   **Answer**: The object will no longer be deactivated after a fixed time (`timer`), and scheduled `Invoke` calls will persist even when the object is deactivated.
-
----
-
-### Code Modification Questions
-
-#### 1. How would you log a message when the object is deactivated?
-
-**Answer**: Add a `Debug.Log` statement in the `DisableMe` method:  
-```csharp
-private void DisableMe()
-{
-    Debug.Log("Object deactivated: " + gameObject.name);
-    gameObject.SetActive(false);
-}
-```
-
----
-
-#### 2. How would you reset the object’s position before deactivating it?
-
-**Answer**: Modify the `DisableMe` method to reset the position:  
-```csharp
-private void DisableMe()
-{
-    transform.position = Vector3.zero;  // Reset position to the origin.
-    gameObject.SetActive(false);
-}
-```
-
----
-
-#### 3. How would you make the deactivation threshold (-5 on Y-axis) configurable?
-
-**Answer**: Add a public variable for the threshold:  
-```csharp
-public float deactivationThreshold = -5f;
-
-void Update()
-{
-    if (transform.position.y < deactivationThreshold)
-        DisableMe();
-}
-```
-
